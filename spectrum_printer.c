@@ -199,14 +199,28 @@ void print_string(Context *c, const char *string)
 
 int main(int argc, const char **argv)
 {
-    Context context;
     init_letters();
     const char *string = "hello world! :)";
-    if (argc >= 2) {
-        string = argv[1];
+    int num_lines = 15;
+    int freq_min = 1000;
+    int freq_max = 1500;
+    int col_time_ms = 400;
+    for (int i = 1; i < argc; i++) {
+        int val = 0;
+        if (sscanf(argv[i], "lines=%d", &val))
+            num_lines = val;
+        else if (sscanf(argv[i], "min=%d", &val))
+            freq_min = val;
+        else if (sscanf(argv[i], "max=%d", &val))
+            freq_max = val;
+        else if (sscanf(argv[i], "time=%d", &val))
+            col_time_ms = val;
+        else
+            string = argv[i];
     }
     Pa_Initialize();
-    context_init(&context, 20, 1000, 1500, 400);
+    Context context;
+    context_init(&context, num_lines, freq_min, freq_max, col_time_ms);
     start_playback(&context);
     print_string(&context, string);
     Pa_Terminate();
