@@ -6,10 +6,10 @@ Compile using make and run:
 ```./spectrum-printer "message"```
 
 ##Dependencies
-[PortAudio](http://www.portaudio.com/)
+[PortAudio V19](http://www.portaudio.com/)
 
 ##Screens
-![first](screens/1.jpg)
+![first](screens/1.png)
 
 ##License
 [The MIT License (MIT)](http://opensource.org/licenses/mit-license.php)
