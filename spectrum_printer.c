@@ -38,6 +38,7 @@ typedef struct {
     float sine[TABLE_SIZE];
     int phase;
     int muted;
+    float intensity;
 } StreamData;
 
 typedef struct {
@@ -60,6 +61,7 @@ void streamdata_init(StreamData *sd, float frequency)
     }
     sd->phase = 0;
     sd->muted = 1;
+    sd->intensity = 1.0f;
 }
 
 void context_init(Context *c, int num_lines, float freq_start, float freq_end, int msec_per_col)
@@ -101,9 +103,10 @@ void context_dealloc(Context *c)
     free(c->streamDatas);
 }
 
-void set_muted(Context *c, int line, int val)
+void set_line(Context *c, int line, int muted, float intensity)
 {
-    c->streamDatas[line].muted = val;
+    c->streamDatas[line].muted = muted;
+    c->streamDatas[line].intensity = intensity;
 }
 
 void start_playback(Context *c)
@@ -121,7 +124,7 @@ void start_playback(Context *c)
 void stop_playback(Context *c)
 {
     for (int line = 0; line < c->num_lines; line++) {
-        set_muted(c, line, 1);
+        set_line(c, line, 1, 0.0f);
     }
     for (int line = 0; line < c->num_lines; line++) {
         Pa_CloseStream(c->streams[line]);
@@ -137,7 +140,7 @@ static int pa_callback( const void *inputBuffer,
     float *out = (float*) outputBuffer;
     
     for (int i = 0; i < framesPerBuffer; i++) {
-        float sample = data->sine[data->phase++];
+        float sample = data->sine[data->phase++] * data->intensity;
         if (data->muted) {
             sample = 0.0f;
         }
@@ -176,39 +179,112 @@ char *prepare_message(const char *string, int *cols)
     return output;
 }
 
-void print_column(Context *c, const char *column, int num_rows)
+void print_text_column(Context *c, const char *column, int num_rows)
 {
     int lines_per_pixel = c->num_lines / num_rows;
     for (int row = 0; row < num_rows; row++) {
         int line_offset = row * lines_per_pixel;
         char letter = column[row];
         for (int line = line_offset; line < line_offset+lines_per_pixel; line++) {
-            set_muted(c, line, letter == '#' ? 0 : 1);
+            set_line(c, line, letter == '#' ? 0 : 1, 1.0f);
         }
     }
     usleep(c->msec_per_col * 1000);
 }
 
-void print_string(Context *c, const char *string)
+void print_image_column(Context *c, const char *column, int num_rows, float max)
 {
+    int lines_per_pixel = c->num_lines / num_rows;
+    for (int row = 0; row < num_rows; row++) {
+        int line_offset = row * lines_per_pixel;
+        char val = column[row];
+        float intensity = (float)val/max;
+        for (int line = line_offset; line < line_offset+lines_per_pixel; line++) {
+            set_line(c, line, 0, intensity);
+        }
+    }
+    usleep(c->msec_per_col * 1000);
+}
+
+void print_string(const char *string, int num_lines, int freq_min, int freq_max, int col_time_ms)
+{
+    Context context;
+    Pa_Initialize();
+    context_init(&context, num_lines, freq_min, freq_max, col_time_ms);
+    start_playback(&context);
     int num_cols = 0;
     const char *message = prepare_message(string, &num_cols);
     for (int col = 0; col < num_cols; col++) {
         const char *col_start = message + col*ROWS_PER_LETTER;
-        print_column(c, col_start, ROWS_PER_LETTER);
+        print_text_column(&context, col_start, ROWS_PER_LETTER);
     }
     free((void*)message);
+    stop_playback(&context);
+    Pa_Terminate();
+    context_dealloc(&context);
+}
+
+// no # comments support
+const char *read_pgm(const char *filename, int *width, int *height, int *max)
+{
+    FILE *fp = fopen(filename, "r");
+    char *output = NULL;
+    if (fp == NULL)
+        return NULL;
+    if (fscanf(fp, "P2 %d %d %d", width, height, max) != 3)
+        goto fail;
+    int size = *width * *height;
+    output = malloc(size);
+    for (int i = 0; i < size; i++) {
+        int val = 0;
+        if (fscanf(fp, "%d ", &val) != 1 || val > *max)
+            goto fail;
+        output[i] = val;
+    }
+    fclose(fp);
+    return output;
+fail:
+    fclose(fp);
+    if (output != NULL) {
+        free((void*)output);
+    }
+    return NULL;
+}
+
+void print_image(const char *filename, int freq_min, int freq_max, int col_time_ms)
+{
+    char buf[2048];
+    Context context;
+    int width, height, max;
+    const char *image = read_pgm(filename, &width, &height, &max);
+    if (image == NULL) {
+        printf("Error loading %s", filename);
+        exit(1);
+    }
+    Pa_Initialize();
+    context_init(&context, height, freq_min, freq_max, col_time_ms);
+    start_playback(&context);
+
+    for (int col = 0; col < width; col++) {
+        for (int row = 0; row < height; row++) {
+            buf[height - 1 - row] = image[row*width + col];
+        }
+        print_image_column(&context, buf, height, max);
+    }
+    stop_playback(&context);
+    Pa_Terminate();
+    context_dealloc(&context);
 }
 
 int main(int argc, const char **argv)
 {
     init_letters();
-    Context context;
     const char *string = "hello world! :)";
     int num_lines = 20;
     int freq_min = 1000;
     int freq_max = 1500;
     int col_time_ms = 400;
+    int from_image = 0;
     for (int i = 1; i < argc; i++) {
         int val = 0;
         if (sscanf(argv[i], "lines=%d", &val))
@@ -219,15 +295,17 @@ int main(int argc, const char **argv)
             freq_max = val;
         else if (sscanf(argv[i], "time=%d", &val))
             col_time_ms = val;
+        else if (strcmp(argv[i], "image=true") == 0)
+            from_image = 1;
         else
             string = argv[i];
     }
-    Pa_Initialize();
-    context_init(&context, num_lines, freq_min, freq_max, col_time_ms);
-    start_playback(&context);
-    print_string(&context, string);
-    stop_playback(&context);
-    Pa_Terminate();
-    context_dealloc(&context);
+
+    if (from_image) {
+        print_image(string, freq_min, freq_max, col_time_ms);
+    } else {
+        print_string(string, num_lines, freq_min, freq_max, col_time_ms);
+    }
+
     return 0;
 }
