@@ -101,6 +101,11 @@ void context_dealloc(Context *c)
     free(c->streamDatas);
 }
 
+void set_muted(Context *c, int line, int val)
+{
+    c->streamDatas[line].muted = val;
+}
+
 void start_playback(Context *c)
 {
     for (int line = 0; line < c->num_lines; line++) {
@@ -115,6 +120,9 @@ void start_playback(Context *c)
 
 void stop_playback(Context *c)
 {
+    for (int line = 0; line < c->num_lines; line++) {
+        set_muted(c, line, 1);
+    }
     for (int line = 0; line < c->num_lines; line++) {
         Pa_CloseStream(c->streams[line]);
     }
@@ -131,7 +139,7 @@ static int pa_callback( const void *inputBuffer,
     for (int i = 0; i < framesPerBuffer; i++) {
         float sample = data->sine[data->phase++];
         if (data->muted) {
-            sample = 0;
+            sample = 0.0f;
         }
         *out++ = sample; /* left */
         *out++ = sample; /* right */
@@ -139,11 +147,6 @@ static int pa_callback( const void *inputBuffer,
             data->phase -= TABLE_SIZE;
     }
     return paContinue;
-}
-
-void set_muted(Context *c, int line, int val)
-{
-    c->streamDatas[line].muted = val;
 }
 
 char *prepare_message(const char *string, int *cols)
@@ -200,8 +203,9 @@ void print_string(Context *c, const char *string)
 int main(int argc, const char **argv)
 {
     init_letters();
+    Context context;
     const char *string = "hello world! :)";
-    int num_lines = 15;
+    int num_lines = 20;
     int freq_min = 1000;
     int freq_max = 1500;
     int col_time_ms = 400;
@@ -219,10 +223,10 @@ int main(int argc, const char **argv)
             string = argv[i];
     }
     Pa_Initialize();
-    Context context;
     context_init(&context, num_lines, freq_min, freq_max, col_time_ms);
     start_playback(&context);
     print_string(&context, string);
+    stop_playback(&context);
     Pa_Terminate();
     context_dealloc(&context);
     return 0;
