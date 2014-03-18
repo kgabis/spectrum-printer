@@ -346,6 +346,10 @@ static void init_letters()
     "   ##"
     "     ";
     
+    gLetters['\"'].array =
+    "   ##"
+    "     ";
+    
     gLetters['|'].array =
     "#####";
     
