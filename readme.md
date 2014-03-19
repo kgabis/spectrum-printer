@@ -23,9 +23,9 @@ When printing images lines option is ignored.
 [PortAudio V19](http://www.portaudio.com/)
 
 ##Screens
-![address](screens/2.png)
-![monalisa](screens/3.png)
-![cameraman](screens/1.png)
+![hexley](screens/1.png)
+![address](screens/3.png)
+![cameraman](screens/2.png)
 
 ##License
 [The MIT License (MIT)](http://opensource.org/licenses/mit-license.php)
