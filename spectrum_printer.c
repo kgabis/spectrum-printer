@@ -140,12 +140,12 @@ static int pa_callback( const void *inputBuffer,
     float *out = (float*) outputBuffer;
     
     for (int i = 0; i < framesPerBuffer; i++) {
-        float sample = data->sine[data->phase++] * data->intensity;
+        float sample = data->sine[data->phase++] * data->intensity / 10.0f;
         if (data->muted) {
             sample = 0.0f;
         }
-        *out++ = sample; /* left */
-        *out++ = sample; /* right */
+        *out++ = sample;
+        *out++ = sample;
         if (data->phase >= TABLE_SIZE)
             data->phase -= TABLE_SIZE;
     }
