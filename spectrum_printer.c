@@ -140,7 +140,7 @@ static int pa_callback( const void *inputBuffer,
     float *out = (float*) outputBuffer;
     
     for (int i = 0; i < framesPerBuffer; i++) {
-        float sample = data->sine[data->phase++] * data->intensity / 10.0f;
+        float sample = data->sine[data->phase++] * data->intensity * data->intensity / 10.0f;
         if (data->muted) {
             sample = 0.0f;
         }
