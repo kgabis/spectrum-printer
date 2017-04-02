@@ -1,7 +1,7 @@
-##About
+## About
 SpectrumPrinter converts images or messages to audio signals, which can be viewed using spectrograms (with [Audacity](http://audacity.sourceforge.net/) or [SpectrumView](https://itunes.apple.com/us/app/spectrumview/id472662922?mt=8)).
 
-##Usage:
+## Usage:
 Compile using make (```make```) and run:
 
 ```./spectrum-printer "message"```
@@ -19,13 +19,13 @@ Example:
 
 When printing images lines option is ignored.
 
-##Dependencies
+## Dependencies
 [PortAudio V19](http://www.portaudio.com/)
 
-##Screens
+## Screens
 ![hexley](screens/1.png)
 ![address](screens/3.png)
 ![cameraman](screens/2.png)
 
-##License
+## License
 [The MIT License (MIT)](http://opensource.org/licenses/mit-license.php)
